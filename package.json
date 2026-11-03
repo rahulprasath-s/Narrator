@@ -1,0 +1,13 @@
+{
+  "name": "narrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dense ideas, made for listening.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch server.mjs",
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "test": "node --test"
+  }
+}
