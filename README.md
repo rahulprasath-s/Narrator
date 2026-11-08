@@ -11,3 +11,9 @@ The goal is more than a shorter summary. Narrator is designed to preserve the th
 An explanation that reads well on a page can still be difficult to follow aloud. Narrator shapes its scripts around shorter sentences, clear references, natural transitions, and a pace that lets one thought lead into the next. Citations and visual formatting give way to spoken attribution and continuous prose.
 
 Users can review and edit a generated script, then listen through browser-based speech with a choice of available voices and playback speeds. The aim is to make demanding material easier to revisit, whether someone prefers listening, wants another way into a difficult passage, or needs time to sit with an unfamiliar argument.
+
+## From documents to understanding
+
+The project is also developing a PDF workflow that extracts text locally and identifies likely headers, footers, page numbers, and footnotes before rewriting. Cleanup is based on page layout and typography rather than language-model inference. Removed text remains available for review, because stripping away clutter should not silently strip away meaning.
+
+Narrator is a work in progress. Its direction is simple: help people engage with difficult writing while preserving what makes it worth understanding. Generated explanations and document cleanup remain open to review; the source text is always the reference for checking an interpretation.
