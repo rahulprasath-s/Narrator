@@ -14,7 +14,7 @@ Users can review a generated script alongside the original, then listen through 
 
 ## From documents to understanding
 
-The React listening studio brings uploading, reading, and listening into one space, with soft gradients, a focused reading pane, and a compact audio player. Drop in a PDF to begin translation automatically, or paste a passage. A Python API handles extraction and Claude requests, keeping credentials on the server. A prewritten sample lets visitors explore the interface without using API credits.
+The React listening studio brings uploading, reading, and listening into one focused space, with a quiet reading pane and a compact audio player. Drop in a PDF to begin translation automatically, or paste a passage. A Python API handles extraction and Claude requests, keeping credentials on the server. A prewritten sample lets visitors explore the interface without using API credits.
 
 PDF extraction happens locally and identifies likely headers, footers, page numbers, and footnotes before rewriting. Cleanup is based on page layout and typography rather than language-model inference. Removed text remains available for review, because stripping away clutter should not silently strip away meaning. Longer documents are translated in sections; failed jobs can resume from completed sections. Documents stay in server memory for the current session, and translations can be downloaded to keep.
 
