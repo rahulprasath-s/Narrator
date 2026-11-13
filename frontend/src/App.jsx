@@ -33,6 +33,7 @@ import { api } from "./api.mjs";
 import { SAMPLE } from "./sample.mjs";
 import { clock, readingMinutes, wordCount } from "./speech.mjs";
 import { useSpeech } from "./useSpeech.js";
+import HighlightedScript from "./HighlightedScript.jsx";
 
 const activeStates = ["queued", "processing"];
 const formatDate = (date) =>
@@ -131,8 +132,7 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-function Player({ text }) {
-  const speech = useSpeech(text);
+function Player({ text, speech }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const duration = Math.max(
     1,
@@ -264,6 +264,11 @@ export default function App() {
       : documents.find((doc) => doc.id === selectedId);
   const busy = active && activeStates.includes(active.state);
   const script = active?.script || "";
+  const speech = useSpeech(view === "studio" && !busy ? script : "");
+
+  useEffect(() => {
+    speech.stop();
+  }, [selectedId, speech.stop]);
 
   const updateDocument = useCallback((doc) => {
     setDocuments((previous) => {
@@ -880,18 +885,25 @@ export default function App() {
                   )}
                   {active &&
                     !busy &&
-                    (outputTab === "source" ? active.source : script) && (
+                    (outputTab === "source" ? active.source : script) &&
+                    (outputTab === "source" ? (
                       <article
                         className="reading-text"
-                        key={`${active.id}-${outputTab}`}
+                        key={`${active.id}-source`}
                       >
-                        {(outputTab === "source" ? active.source : script)
+                        {active.source
                           .split(/\n\s*\n/)
                           .map((paragraph, index) => (
                             <p key={index}>{paragraph}</p>
                           ))}
                       </article>
-                    )}
+                    ) : (
+                      <HighlightedScript
+                        key={`${active.id}-script`}
+                        text={script}
+                        activeRange={speech.activeRange}
+                      />
+                    ))}
                   {active && !busy && active.state !== "ready" && script && (
                     <p className="partial-notice">
                       This is a partial translation. Retry to continue.
@@ -924,7 +936,7 @@ export default function App() {
                           </button>
                         </div>
                       </div>
-                      <Player key={active.id} text={script} />
+                      <Player key={active.id} text={script} speech={speech} />
                     </div>
                   )}
                   {!script && !busy && (

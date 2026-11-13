@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { googleVoices, speechChunks } from "./speech.mjs";
+import { googleVoices, speechBatches } from "./speech.mjs";
 
 export function useSpeech(text) {
   const supported =
@@ -9,6 +9,7 @@ export function useSpeech(text) {
   const [rate, setRateState] = useState(1);
   const [status, setStatus] = useState("idle");
   const [position, setPosition] = useState(0);
+  const [activeRange, setActiveRange] = useState(null);
   const [error, setError] = useState("");
   const run = useRef(0);
   const utterance = useRef(null);
@@ -27,6 +28,7 @@ export function useSpeech(text) {
     index.current = 0;
     setStatus("idle");
     setPosition(0);
+    setActiveRange(null);
   }, [supported]);
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export function useSpeech(text) {
     stop();
     setError("");
     const currentRun = run.current;
-    const chunks = speechChunks(text);
+    const chunks = speechBatches(text);
     running.current = true;
     setStatus("playing");
     function readNext() {
@@ -80,7 +82,9 @@ export function useSpeech(text) {
       speech.lang = selected.voice.lang;
       speech.rate = rate;
       speech.onstart = () => {
-        if (currentRun === run.current) setPosition(chunk.start);
+        if (currentRun !== run.current) return;
+        setPosition(chunk.start);
+        setActiveRange({ start: chunk.start, end: chunk.end });
       };
       speech.onboundary = (event) => {
         if (currentRun === run.current)
@@ -141,6 +145,7 @@ export function useSpeech(text) {
     setRate,
     status,
     position,
+    activeRange,
     error,
     toggle,
     stop,
