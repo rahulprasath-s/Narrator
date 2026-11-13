@@ -469,7 +469,7 @@ export default function App() {
             narrator<span className="brand-period">.</span>
           </span>
         </button>
-        <div className="workspace-label">YOUR PERSONAL STUDIO</div>
+        <div className="workspace-label">WORKSPACE</div>
         <nav aria-label="Main navigation">
           <button
             className={`nav-item ${view === "studio" ? "active" : ""}`}
@@ -495,7 +495,7 @@ export default function App() {
         </nav>
         <div className="sidebar-divider" />
         <div className="recent-label">
-          RECENTLY ON YOUR MIND{" "}
+          RECENT DOCUMENTS{" "}
           <span>{documents.length > 0 && documents.length}</span>
         </div>
         <div className="sidebar-documents">
@@ -522,17 +522,9 @@ export default function App() {
           )}
         </div>
         <div className="sidebar-bottom">
-          <div className="thought-card">
-            <span className="tiny-star">✦</span>
-            <p>
-              A little less jargon.
-              <br />
-              <em>A lot more meaning.</em>
-            </p>
-            <Wave />
-          </div>
           <button className="sidebar-help" onClick={() => setModal("help")}>
-            <CircleHelp size={16} />A little guidance
+            <CircleHelp size={16} />
+            Help & guidance
             <ArrowUpRight size={14} />
           </button>
           <div className="workspace-profile">
@@ -577,51 +569,18 @@ export default function App() {
             <>
               <section className="hero">
                 <div className="hero-copy">
-                  <div className="eyebrow">
-                    <span className="eyebrow-spark">✦</span> BIG IDEAS. A LITTLE
-                    MORE HUMAN.
-                  </div>
-                  <h1>
-                    A clearer way
-                    <br />
-                    to <em>understand.</em>
-                  </h1>
+                  <h1>A little more clarity.</h1>
                   <p>
-                    Turn the text you wrestle with into words you can follow.
-                    <br className="wide-break" /> The same depth. A whole new
-                    way to listen.
+                    Bring a document. Read the meaning. Listen at your pace.
                   </p>
-                </div>
-                <div className="hero-art" aria-hidden="true">
-                  <div className="orb-glow" />
-                  <div className="orbit orbit-one" />
-                  <div className="orbit orbit-two" />
-                  <div className="hero-orb">
-                    <Wave />
-                  </div>
-                  <span className="floating-note note-one">
-                    <Sparkles size={12} />A little clarity
-                  </span>
-                  <span className="floating-note note-two">
-                    ideas, out loud <AudioLines size={13} />
-                  </span>
-                  <span className="art-star star-one">✦</span>
-                  <span className="art-star star-two">✧</span>
                 </div>
               </section>
 
-              <div className="section-label">
-                <span>LET’S MAKE SENSE OF IT</span>
-                <span>
-                  <ShieldCheck size={13} />
-                  Your words. Your pace.
-                </span>
-              </div>
               <div className="studio-grid">
                 <section className="source-card card">
                   <div className="card-heading">
                     <h2>
-                      <span className="step-number">01</span>Start with an idea
+                      <span className="step-number">01</span>Your document
                     </h2>
                     <button
                       className="icon-button"
@@ -676,17 +635,11 @@ export default function App() {
                         ) : (
                           <CloudUpload size={29} strokeWidth={1.6} />
                         )}
-                        <span className="icon-spark">✦</span>
                       </div>
-                      <h3>
-                        Drop a little
-                        <br />
-                        complexity here.
-                      </h3>
+                      <h3>Upload a document</h3>
                       <p>
-                        A paper, a chapter, a big idea.
-                        <br />
-                        We’ll help you find the thread.
+                        Drop a PDF here to turn it into a clear, spoken
+                        explanation.
                       </p>
                       <button
                         className="upload-button"
@@ -787,11 +740,11 @@ export default function App() {
                 >
                   <div className="card-heading">
                     <h2>
-                      <span className="step-number">02</span>A fresh perspective
+                      <span className="step-number">02</span>Translation
                     </h2>
                     <span className="ear-tag">
                       <Headphones size={11} />
-                      MADE FOR THE EAR
+                      READ & LISTEN
                     </span>
                   </div>
                   {active && (script || active.source) && (
@@ -826,21 +779,16 @@ export default function App() {
                   {!active && (
                     <div className="output-empty">
                       <div className="empty-sound">
-                        <div className="sound-halo" />
                         <Wave />
                       </div>
-                      <h3>
-                        Good ideas deserve
-                        <br />
-                        <em>a clear voice.</em>
-                      </h3>
+                      <h3>Ready when you are.</h3>
                       <p>
                         Your translation will appear here.
                         <br />
                         Ready to read. Even better to hear.
                       </p>
                       <button className="sample-button" onClick={trySample}>
-                        See a little magic <Sparkles size={13} />
+                        Preview an example <Sparkles size={13} />
                       </button>
                       <span className="sample-hint">
                         Try a sample. No credits needed.
@@ -854,7 +802,7 @@ export default function App() {
                         {active.state === "queued"
                           ? "Your idea is up next."
                           : active.source
-                            ? "Finding the thread…"
+                            ? "Preparing your translation…"
                             : "Getting to know your document…"}
                       </strong>
                       <p>{active.stage}</p>
@@ -871,7 +819,7 @@ export default function App() {
                   {active?.state === "error" && (
                     <div className="generation-error" role="alert">
                       <CircleHelp size={22} />
-                      <h3>A little pause in the story.</h3>
+                      <h3>Translation paused</h3>
                       <p>{active.error}</p>
                       <button
                         className="upload-button"
@@ -914,8 +862,7 @@ export default function App() {
                       <div className="script-tools">
                         <span>
                           <Sparkles size={12} />
-                          {wordCount(script).toLocaleString()} words, a little
-                          clearer
+                          {wordCount(script).toLocaleString()} words
                         </span>
                         <div>
                           <button
@@ -944,7 +891,7 @@ export default function App() {
                       <span className="empty-play">
                         <Play size={12} fill="currentColor" />
                       </span>
-                      <span>Your next “oh, I get it” moment.</span>
+                      <span>Your audio will appear here.</span>
                       <Wave />
                     </div>
                   )}
@@ -975,7 +922,7 @@ export default function App() {
                         : "Connecting to your studio…"}
                 </span>
                 <span className="studio-note-right">
-                  Thoughtfully translated. Never flattened.
+                  Read. Understand. Listen.
                 </span>
               </div>
 
@@ -1006,51 +953,6 @@ export default function App() {
                   </div>
                 </details>
               )}
-
-              <section className="principles">
-                <div className="principles-heading">
-                  <span className="eyebrow">
-                    A LITTLE THOUGHT BEHIND EVERY WORD
-                  </span>
-                  <h2>
-                    Clarity, <em>without cutting corners.</em>
-                  </h2>
-                </div>
-                <div className="principle-grid">
-                  <div>
-                    <span className="principle-icon purple">
-                      <Layers3 size={18} />
-                    </span>
-                    <h3>The depth stays.</h3>
-                    <p>
-                      The argument, the nuance, the tension.
-                      <br />
-                      Everything that makes an idea matter.
-                    </p>
-                  </div>
-                  <div>
-                    <span className="principle-icon peach">
-                      <Sparkles size={18} />
-                    </span>
-                    <h3>The abstract gets real.</h3>
-                    <p>
-                      Everyday examples give unfamiliar
-                      <br />
-                      concepts somewhere to land.
-                    </p>
-                  </div>
-                  <div>
-                    <span className="principle-icon green">
-                      <Headphones size={18} />
-                    </span>
-                    <h3>Made to move with you.</h3>
-                    <p>
-                      Natural sentences and a human pace.
-                      <br />A conversation you can follow.
-                    </p>
-                  </div>
-                </div>
-              </section>
             </>
           ) : (
             <section className="library-view">
@@ -1114,11 +1016,8 @@ export default function App() {
             </section>
           )}
           <footer className="main-footer">
-            <span>MADE FOR CURIOUS MINDS.</span>
-            <span>
-              Less friction. More understanding.{" "}
-              <span className="footer-star">✦</span>
-            </span>
+            <span>NARRATOR</span>
+            <span>Complex ideas, made clear.</span>
           </footer>
         </main>
       </div>
