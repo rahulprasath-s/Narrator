@@ -2,26 +2,33 @@
 
 **Complex ideas, made for listening.**
 
-Academic and philosophical writing often asks readers to work through unfamiliar terminology, long sentences, and layers of abstraction before reaching the idea underneath. Narrator aims to make those ideas easier to follow by turning dense passages into clear, natural spoken explanations.
+Narrator turns demanding writing and saved AI news summaries into a focused reading and listening experience. Bring a philosophical passage, an academic paper, or a daily news brief, then follow it at your own pace.
 
-The goal is more than a shorter summary. Narrator is designed to preserve the thinking: the central claim, the reasons behind it, the objections, and the qualifications that give an argument its meaning. It replaces unnecessary jargon with everyday language and grounds abstract concepts in familiar examples, while keeping important distinctions intact.
-
-## Written for the ear
-
-An explanation that reads well on a page can still be difficult to follow aloud. Narrator shapes its scripts around shorter sentences, clear references, natural transitions, and a pace that lets one thought lead into the next. Citations and visual formatting give way to spoken attribution and continuous prose.
-
-Users can review a generated script alongside the original, then listen through browser-based speech with a choice of three available Google voices and playback speeds. The aim is to make demanding material easier to revisit, whether someone prefers listening, wants another way into a difficult passage, or needs time to sit with an unfamiliar argument.
-
-Playback reads the script continuously while highlighting groups of seven words. Highlighting follows word positions when the selected voice reports them; otherwise it uses estimated timing without interrupting the audio. Pause and resume keep the reading position together with the voice.
+The aim is clarity without losing the thinking behind an idea. Narrator asks Claude to preserve arguments, qualifications, and important distinctions while replacing unnecessary jargon with everyday language and concrete examples. The result is written for spoken delivery, with shorter sentences and natural transitions.
 
 ## From documents to understanding
 
-The React listening studio brings uploading, reading, and listening into one focused space, with a quiet reading pane and a compact audio player. Drop in a PDF to begin translation automatically, or paste a passage. A Python API handles extraction and Claude requests, keeping credentials on the server. A prewritten sample lets visitors explore the interface without using API credits.
+Upload a text-based PDF to begin translation automatically, or paste a passage directly. PDF extraction happens locally, using layout and font-size rules to identify likely headers, footers, page numbers, and footnotes. The extracted source and removed lines remain available for review.
 
-PDF extraction happens locally and identifies likely headers, footers, page numbers, and footnotes before rewriting. Cleanup is based on page layout and typography rather than language-model inference. Removed text remains available for review, because stripping away clutter should not silently strip away meaning. Longer documents are translated in sections; failed jobs can resume from completed sections. Documents stay in server memory for the current session, and translations can be downloaded to keep.
+The React studio brings the original text, spoken translation, and playback controls into one quiet workspace. Longer documents are translated in sections, and failed translation jobs can resume from completed sections. Translations can be copied or downloaded to keep.
 
-## A daily brief, ready to listen
+PDF cleanup is heuristic, and generated explanations can make mistakes. Scanned PDFs require OCR, which this version does not provide. The original source remains the reference for checking an interpretation.
 
-The AI Brief view connects to the Notion database populated by the separate AI-Daily-Brief project. Choose a date to browse its ranked stories, see summary and reading statuses, open original sources, and listen to saved summaries. Extraction and summarization happen upstream; Narrator reads the results without generating them again. Ready summaries use the same voice, speed, and highlighting controls as document translations. Missing or unavailable summaries remain visible with their status.
+## Your daily AI brief
 
-Narrator is a work in progress. Its direction is simple: help people engage with difficult writing while preserving what makes it worth understanding. Generated explanations and document cleanup remain open to review; the source text is always the reference for checking an interpretation.
+Narrator connects to the Notion database populated by [AI-Daily-Brief](https://github.com/rahulprasath-s/AI-Daily-Brief). Choose a date to browse its ranked stories in a table, inspect summary and reading statuses, and open the original articles.
+
+Select a story to read its saved summary and listen to it. Article extraction and summarization happen in AI-Daily-Brief; Narrator reads the results without sending those summaries to Claude again. Stories with pending, failed, or unavailable summaries retain their status rather than being presented as finished briefings.
+
+## Free speech, native to your Mac
+
+Listening uses the built-in macOS voices **Rishi** and **Samantha**, with short previews so you can choose the voice you prefer. A small native helper renders speech on the Mac running Narrator's Python server. The browser plays the resulting recording instead of selecting a speech voice itself.
+
+- Continuous playback with pause and resume.
+- Seven-word highlighting driven by native word timestamps and the audio clock.
+- A draggable word-position bar and forward/back controls for seeking within the recording.
+- Adjustable speed and voice switching that preserves the reading position.
+
+Speech needs no paid TTS service, speech API key, or additional model download. This native playback path requires macOS and Apple command-line tools. Document rewriting still uses the configured Claude API and its credits.
+
+Documents and recordings are cached temporarily on the Python server, not stored as a permanent library. Download translations you want to retain.
