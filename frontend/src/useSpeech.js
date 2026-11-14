@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { googleVoices, speechBatches } from "./speech.mjs";
+import { googleVoices } from "./speech.mjs";
+import { createSpeechPlayback } from "./speechPlayback.mjs";
 
 export function useSpeech(text) {
   const supported =
@@ -11,24 +12,18 @@ export function useSpeech(text) {
   const [position, setPosition] = useState(0);
   const [activeRange, setActiveRange] = useState(null);
   const [error, setError] = useState("");
-  const run = useRef(0);
-  const utterance = useRef(null);
-  const running = useRef(false);
-  const paused = useRef(false);
-  const index = useRef(0);
-  const next = useRef(null);
+  const [timingMode, setTimingMode] = useState(null);
+  const playback = useRef(null);
   const chosenByUser = useRef(false);
 
   const stop = useCallback(() => {
-    run.current++;
-    if (supported) window.speechSynthesis.cancel();
-    running.current = false;
-    paused.current = false;
-    utterance.current = null;
-    index.current = 0;
+    if (playback.current) playback.current.stop();
+    else if (supported) window.speechSynthesis.cancel();
+    playback.current = null;
     setStatus("idle");
     setPosition(0);
     setActiveRange(null);
+    setTimingMode(null);
   }, [supported]);
 
   useEffect(() => {
@@ -49,8 +44,9 @@ export function useSpeech(text) {
     return () => {
       synth.removeEventListener("voiceschanged", refresh);
       window.removeEventListener("pagehide", stop);
-      run.current++;
-      synth.cancel();
+      if (playback.current) playback.current.stop();
+      else synth.cancel();
+      playback.current = null;
     };
   }, [supported, stop]);
 
@@ -64,66 +60,25 @@ export function useSpeech(text) {
     if (!supported || !selected || !text.trim()) return;
     stop();
     setError("");
-    const currentRun = run.current;
-    const chunks = speechBatches(text);
-    running.current = true;
-    setStatus("playing");
-    function readNext() {
-      if (currentRun !== run.current) return;
-      if (index.current >= chunks.length) {
-        stop();
-        setPosition(text.length);
-        return;
-      }
-      const chunk = chunks[index.current];
-      const speech = new SpeechSynthesisUtterance(chunk.text);
-      utterance.current = speech;
-      speech.voice = selected.voice;
-      speech.lang = selected.voice.lang;
-      speech.rate = rate;
-      speech.onstart = () => {
-        if (currentRun !== run.current) return;
-        setPosition(chunk.start);
-        setActiveRange({ start: chunk.start, end: chunk.end });
-      };
-      speech.onboundary = (event) => {
-        if (currentRun === run.current)
-          setPosition(chunk.start + event.charIndex);
-      };
-      speech.onend = () => {
-        if (currentRun === run.current) {
-          index.current++;
-          readNext();
-        }
-      };
-      speech.onerror = (event) => {
-        if (currentRun !== run.current) return;
-        stop();
-        if (!["canceled", "interrupted"].includes(event.error))
-          setError(
-            "This voice couldn’t play. Try another Google voice or check your connection.",
-          );
-      };
-      window.speechSynthesis.speak(speech);
-    }
-    next.current = readNext;
-    readNext();
+    playback.current = createSpeechPlayback({
+      text,
+      voice: selected.voice,
+      rate,
+      synth: window.speechSynthesis,
+      createUtterance: (value) => new SpeechSynthesisUtterance(value),
+      onStatus: setStatus,
+      onPosition: setPosition,
+      onRange: setActiveRange,
+      onTiming: setTimingMode,
+      onError: setError,
+    });
+    playback.current.start();
   }
 
   function toggle() {
-    if (!running.current) {
-      start();
-      return;
-    }
-    if (paused.current) {
-      window.speechSynthesis.resume();
-      paused.current = false;
-      setStatus("playing");
-    } else {
-      window.speechSynthesis.pause();
-      paused.current = true;
-      setStatus("paused");
-    }
+    if (playback.current?.status === "playing") playback.current.pause();
+    else if (playback.current?.status === "paused") playback.current.resume();
+    else start();
   }
 
   function setVoiceName(value) {
@@ -146,6 +101,7 @@ export function useSpeech(text) {
     status,
     position,
     activeRange,
+    timingMode,
     error,
     toggle,
     stop,
