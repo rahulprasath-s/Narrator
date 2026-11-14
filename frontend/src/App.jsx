@@ -18,22 +18,23 @@ import {
   Layers3,
   LoaderCircle,
   Menu,
-  Pause,
+  Newspaper,
   Play,
   Plus,
   RotateCcw,
   Settings2,
   ShieldCheck,
   Sparkles,
-  Square,
   WandSparkles,
   X,
 } from "lucide-react";
 import { api } from "./api.mjs";
 import { SAMPLE } from "./sample.mjs";
-import { clock, readingMinutes, wordCount } from "./speech.mjs";
+import { readingMinutes, wordCount } from "./speech.mjs";
 import { useSpeech } from "./useSpeech.js";
 import HighlightedScript from "./HighlightedScript.jsx";
+import Player from "./Player.jsx";
+import NewsView from "./NewsView.jsx";
 
 const activeStates = ["queued", "processing"];
 const formatDate = (date) =>
@@ -128,110 +129,6 @@ function Modal({ title, onClose, children }) {
         </div>
         {children}
       </section>
-    </div>
-  );
-}
-
-function Player({ text, speech }) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const duration = Math.max(
-    1,
-    Math.round((wordCount(text) / (150 * speech.rate)) * 60),
-  );
-  const fraction = text.length ? speech.position / text.length : 0;
-  const hasVoice = speech.voices.length > 0 && speech.supported;
-  return (
-    <div className="audio-player">
-      <div className="player-main">
-        <button
-          className={`listen-button ${speech.status === "playing" ? "is-playing" : ""}`}
-          onClick={speech.toggle}
-          disabled={!hasVoice || !text.trim()}
-        >
-          {speech.status === "playing" ? (
-            <Pause size={16} fill="currentColor" />
-          ) : (
-            <Play size={16} fill="currentColor" />
-          )}
-          {speech.status === "playing"
-            ? "Pause"
-            : speech.status === "paused"
-              ? "Resume"
-              : "Listen"}
-        </button>
-        <div className="playback-track">
-          <div className="track-line">
-            <span style={{ width: `${fraction * 100}%` }} />
-          </div>
-          <div className="track-times">
-            <span>{clock(fraction * duration)}</span>
-            <span>~{clock(duration)}</span>
-          </div>
-        </div>
-        <button
-          className="icon-button"
-          onClick={speech.stop}
-          disabled={speech.status === "idle"}
-          aria-label="Stop playback"
-          title="Stop"
-        >
-          <Square size={14} />
-        </button>
-        <button
-          className={`speed-button ${settingsOpen ? "selected" : ""}`}
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          aria-expanded={settingsOpen}
-          aria-label="Voice and speed settings"
-        >
-          {speech.rate.toFixed(1)}× <Settings2 size={14} />
-        </button>
-      </div>
-      {settingsOpen && (
-        <div className="voice-settings">
-          <label>
-            Voice
-            <select
-              value={speech.voiceName}
-              disabled={!hasVoice}
-              onChange={(event) => speech.setVoiceName(event.target.value)}
-            >
-              {!hasVoice && <option>Google voices unavailable</option>}
-              {speech.voices.map((voice) => (
-                <option value={voice.name} key={voice.name}>
-                  {voice.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="speed-setting">
-            Speed <output>{speech.rate.toFixed(1)}×</output>
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={speech.rate}
-              onChange={(event) => speech.setRate(Number(event.target.value))}
-            />
-          </label>
-          <p>
-            Changing voice or speed restarts playback. Time shown is an
-            estimate.
-          </p>
-        </div>
-      )}
-      {!hasVoice && (
-        <p className="voice-notice">
-          {speech.supported
-            ? "Google online voices aren’t available in this browser. Try Google Chrome."
-            : "This browser doesn’t support read-aloud playback."}
-        </p>
-      )}
-      {speech.error && (
-        <p className="voice-notice error-text" role="alert">
-          {speech.error}
-        </p>
-      )}
     </div>
   );
 }
@@ -492,6 +389,16 @@ export default function App() {
             <BookOpen size={18} />
             Your library<span className="nav-count">{documents.length}</span>
           </button>
+          <button
+            className={`nav-item ${view === "news" ? "active" : ""}`}
+            onClick={() => {
+              setView("news");
+              setMobileNav(false);
+            }}
+          >
+            <Newspaper size={18} />
+            AI Brief
+          </button>
         </nav>
         <div className="sidebar-divider" />
         <div className="recent-label">
@@ -552,7 +459,13 @@ export default function App() {
             </button>
             <span>Workspace</span>
             <ChevronRight size={13} />
-            <strong>{view === "studio" ? "The studio" : "Your library"}</strong>
+            <strong>
+              {view === "studio"
+                ? "The studio"
+                : view === "news"
+                  ? "AI Brief"
+                  : "Your library"}
+            </strong>
           </div>
           <div className="topbar-actions">
             <button className="how-button" onClick={() => setModal("help")}>
@@ -954,6 +867,8 @@ export default function App() {
                 </details>
               )}
             </>
+          ) : view === "news" ? (
+            <NewsView />
           ) : (
             <section className="library-view">
               <div className="eyebrow">GOOD IDEAS, WITHIN REACH</div>
