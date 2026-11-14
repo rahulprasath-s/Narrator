@@ -43,6 +43,7 @@ launch(python, [
   "127.0.0.1",
   "--port",
   process.env.NARRATOR_API_PORT || "8000",
+  ...(!production ? ["--reload"] : []),
 ]);
 if (!production)
   launch(process.execPath, [
