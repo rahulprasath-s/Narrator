@@ -6,7 +6,7 @@ Only this module calls the existing PDF parser and Claude translator.
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import hashlib
 import json
 import os
@@ -15,11 +15,13 @@ import re
 from threading import RLock
 import uuid
 
+import httpx
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from pdf_parser import extract_pdf_text
+from notion_news import get_news_for_date
 from prompts import SCRIPT_INSTRUCTIONS
 from translator import generate_script
 
@@ -198,6 +200,26 @@ def create_app(manager=None):
         session = session_id(x_narrator_session)
         with jobs.lock:
             return [jobs.snapshot(j) for j in reversed(list(jobs.jobs.values())) if j["session"] == session]
+
+    @app.get("/api/news/{day}")
+    def daily_news(day: date, x_narrator_session: str = Header(default="")):
+        """Read one day's Notion stories without starting a translation job."""
+        session_id(x_narrator_session)
+
+        try:
+            stories = get_news_for_date(day.isoformat())
+        except RuntimeError as error:
+            raise HTTPException(503, "Configure the Notion connection in .env.") from error
+        except httpx.TimeoutException as error:
+            raise HTTPException(504, "Notion took too long to respond. Try again.") from error
+        except httpx.HTTPStatusError as error:
+            raise HTTPException(
+                502, "Notion could not load the news. Check the database connection and try again."
+            ) from error
+        except httpx.RequestError as error:
+            raise HTTPException(502, "Could not connect to Notion. Try again.") from error
+
+        return {"date": day.isoformat(), "count": len(stories), "stories": stories}
 
     @app.post("/api/documents", status_code=202)
     async def upload(
