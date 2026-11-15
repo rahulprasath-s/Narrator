@@ -30,3 +30,20 @@ export async function api(path, options = {}) {
     );
   return data;
 }
+
+export async function apiAudio(path, options = {}) {
+  const response = await fetch(`/api${path}`, {
+    ...options,
+    headers: { "X-Narrator-Session": session, ...options.headers },
+  });
+  if (!response.ok) {
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      /* Use a safe fallback. */
+    }
+    throw new Error(data?.detail || "The Mac recording could not be loaded.");
+  }
+  return response.blob();
+}
