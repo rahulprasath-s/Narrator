@@ -977,9 +977,10 @@ export default function App() {
             <div>
               <h3>Read it. Hear it. Get it.</h3>
               <p>
-                Listen through one of your three Google browser voices, adjust
-                the pace, or download the text. Review against the original when
-                accuracy matters.
+                Listen for free through a built-in Mac voice, adjust the pace,
+                or drag the position bar to seek to a selected word. macOS
+                renders the recording and its word timestamps locally. Review
+                against the original when accuracy matters.
               </p>
             </div>
           </div>
