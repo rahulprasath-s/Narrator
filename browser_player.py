@@ -15,6 +15,10 @@ def render_player(script: str)-> None:
     <head>
         <meta charset="utf-8">
         <style>
+            :root {
+                color-scheme: light dark;
+            }
+
             body {
                 font-family: sans-serif;
                 margin: 0;
@@ -25,6 +29,25 @@ def render_player(script: str)-> None:
                 padding: 10px 16px;
                 margin-right: 8px;
                 cursor: pointer;
+                border: 1px solid #8886;
+                border-radius: 8px;
+            }
+
+            #play {
+                background: #e63b50;
+                border-color: #e63b50;
+                color: white;
+                font-weight: 600;
+            }
+
+            summary {
+                cursor: pointer;
+                padding: 8px 0;
+                font-size: 14px;
+            }
+
+            details[open] summary {
+                margin-bottom: 12px;
             }
 
             .setting {
@@ -51,27 +74,31 @@ def render_player(script: str)-> None:
         </style>
     </head>
     <body>
-        <div class="setting">
-            <label for="voice">Voice</label>
-            <select id="voice">
-                <option value="">Browser default</option>
-            </select>
-        </div>
-
-        <div class="setting">
-            <label for="speed">Speed</label>
-            <input id="speed" type="range" min="0.5" max="2"
-                   step="0.1" value="1">
-            <output id="speed-value" for="speed">1.0×</output>
-        </div>
-
-        <button id="play">Read aloud</button>
+        <button id="play" type="button">▶ Listen</button>
         <button id="pause" disabled>Pause</button>
         <button id="stop" disabled>Stop</button>
 
         <p id="status" role="status" aria-live="polite">
-            Ready to read.
+            Ready to listen.
         </p>
+
+        <details>
+            <summary>Voice and speed</summary>
+
+            <div class="setting">
+                <label for="voice">Voice</label>
+                <select id="voice" disabled>
+                    <option value="">Loading Google voices…</option>
+                </select>
+            </div>
+
+            <div class="setting">
+                <label for="speed">Speed</label>
+                <input id="speed" type="range" min="0.5" max="2"
+                       step="0.1" value="1">
+                <output id="speed-value" for="speed">1.0×</output>
+            </div>
+        </details>
 
         <script>
         (() => {
@@ -127,7 +154,7 @@ def render_player(script: str)-> None:
                 currentUtterance = null;
                 paused = false;
 
-                playButton.disabled = false;
+                playButton.disabled = availableVoices.length === 0;
                 pauseButton.disabled = true;
                 stopButton.disabled = true;
                 pauseButton.textContent = "Pause";
@@ -135,35 +162,53 @@ def render_player(script: str)-> None:
             }
 
             let availableVoices = [];
+            let hasChosenVoice = false;
+            const preferredVoices = [
+                { name: "Google US English", lang: "en-US" },
+                { name: "Google UK English Male", lang: "en-GB" },
+                { name: "Google UK English Female", lang: "en-GB" },
+            ];
 
             function loadVoices() {
                 const previousChoice = voiceSelect.value;
                 const voices = speech.getVoices();
-                const englishVoices = voices.filter(
-                    voice => /^en(?:[-_]|$)/i.test(voice.lang)
-                );
 
-                availableVoices = (englishVoices.length
-                    ? englishVoices
-                    : voices).slice().sort((a, b) =>
-                        a.name.localeCompare(b.name)
-                    );
+                availableVoices = preferredVoices.map(preferred =>
+                    voices.find(voice =>
+                        voice.name === preferred.name &&
+                        voice.lang.replace("_", "-").toLowerCase() ===
+                            preferred.lang.toLowerCase() &&
+                        voice.localService === false
+                    )
+                ).filter(Boolean);
 
-                voiceSelect.replaceChildren(
-                    new Option("Browser default", "")
-                );
+                voiceSelect.replaceChildren();
+                voiceSelect.disabled = availableVoices.length === 0;
+
+                if (availableVoices.length === 0) {
+                    voiceSelect.add(new Option("Google voices unavailable", ""));
+                    reset("These Google online voices are unavailable in this browser. Try Google Chrome.");
+                    return;
+                }
 
                 for (const voice of availableVoices) {
-                    const location = voice.localService ? "device" : "online";
                     const label = voice.name + " — " + voice.lang +
-                        " (" + location + ")";
+                        " (online)";
                     voiceSelect.add(new Option(label, voice.voiceURI));
                 }
 
-                if (availableVoices.some(
+                if (hasChosenVoice && availableVoices.some(
                     voice => voice.voiceURI === previousChoice
                 )) {
                     voiceSelect.value = previousChoice;
+                } else {
+                    // The allowlist puts Google US English first.
+                    voiceSelect.value = availableVoices[0].voiceURI;
+                }
+
+                playButton.disabled = currentUtterance !== null;
+                if (currentUtterance === null) {
+                    status.textContent = "Ready to listen.";
                 }
             }
 
@@ -171,13 +216,14 @@ def render_player(script: str)-> None:
             speech.addEventListener("voiceschanged", loadVoices);
 
             voiceSelect.addEventListener("change", () => {
-                reset("Voice changed. Press Read aloud to restart.");
+                hasChosenVoice = true;
+                reset("Voice changed. Press Listen to restart.");
             });
 
             speedSlider.addEventListener("input", () => {
                 speedValue.textContent =
                     Number(speedSlider.value).toFixed(1) + "×";
-                reset("Speed changed. Press Read aloud to restart.");
+                reset("Speed changed. Press Listen to restart.");
             });
 
             playButton.addEventListener("click", () => {
@@ -187,6 +233,10 @@ def render_player(script: str)-> None:
                 const selectedVoice = availableVoices.find(
                     voice => voice.voiceURI === voiceSelect.value
                 );
+                if (!selectedVoice) {
+                    reset("Choose an available Google voice to listen.");
+                    return;
+                }
                 const selectedRate = Number(speedSlider.value);
                 let index = 0;
 
@@ -207,13 +257,8 @@ def render_player(script: str)-> None:
                     currentUtterance =
                         new SpeechSynthesisUtterance(chunks[index]);
 
-                    if (selectedVoice) {
-                        currentUtterance.voice = selectedVoice;
-                    }
-
-                    currentUtterance.lang = selectedVoice
-                        ? selectedVoice.lang
-                        : "en-US";
+                    currentUtterance.voice = selectedVoice;
+                    currentUtterance.lang = selectedVoice.lang;
                     currentUtterance.rate = selectedRate;
 
                     currentUtterance.onend = () => {
@@ -277,6 +322,6 @@ def render_player(script: str)-> None:
 
     st.iframe(
         player_html,
-        height=260,
-        alt="Voice selection, speed, and script playback controls",
+        height="content",
+        alt="Listen to the translation and adjust voice or speed",
     )
