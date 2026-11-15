@@ -10,7 +10,12 @@ from prompts import SCRIPT_INSTRUCTIONS
 load_dotenv(Path(__file__).parent / ".env")
 
 
-def generate_script(source_text: str) -> str:
+def generate_script(
+    source_text: str,
+    *,
+    instructions: str = SCRIPT_INSTRUCTIONS,
+    max_tokens: int = 8000,
+) -> str:
     text = source_text.strip()
 
     if not text:
@@ -35,8 +40,8 @@ def generate_script(source_text: str) -> str:
         ) as client:
             response = client.messages.create(
                 model=model,
-                max_tokens=8000,
-                system=SCRIPT_INSTRUCTIONS,
+                max_tokens=max_tokens,
+                system=instructions,
                 messages=[{"role": "user", "content": text}],
             )
 
