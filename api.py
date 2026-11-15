@@ -13,17 +13,19 @@ import os
 from pathlib import Path
 import re
 from threading import RLock
+from typing import Literal
 import uuid
 
 import httpx
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from pdf_parser import extract_pdf_text
 from notion_news import get_news_for_date
 from prompts import SCRIPT_INSTRUCTIONS
 from translator import generate_script
+from native_speech import NativeAudioJobs, installed_voices
 
 
 ROOT = Path(__file__).parent
@@ -160,16 +162,24 @@ class TextInput(BaseModel):
     name: str = Field(default="Untitled thought", max_length=120)
 
 
-def create_app(manager=None):
+class NativeSpeechInput(BaseModel):
+    text: str = Field(min_length=1, max_length=40000)
+    voice: Literal["Rishi", "Samantha"] = "Samantha"
+
+
+def create_app(manager=None, speech_manager=None):
     jobs = manager or JobManager()
+    audio_jobs = speech_manager or NativeAudioJobs()
 
     @asynccontextmanager
     async def lifespan(app):
         yield
         jobs.executor.shutdown(wait=False, cancel_futures=True)
+        audio_jobs.executor.shutdown(wait=False, cancel_futures=True)
 
     app = FastAPI(title="Narrator", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.jobs = jobs
+    app.state.speech_jobs = audio_jobs
 
     @app.middleware("http")
     async def local_access(request: Request, call_next):
@@ -200,6 +210,40 @@ def create_app(manager=None):
         session = session_id(x_narrator_session)
         with jobs.lock:
             return [jobs.snapshot(j) for j in reversed(list(jobs.jobs.values())) if j["session"] == session]
+
+    @app.get("/api/speech/voices")
+    def speech_voices():
+        try:
+            return {"voices": installed_voices()}
+        except RuntimeError as error:
+            raise HTTPException(503, str(error)) from error
+
+    @app.post("/api/speech", status_code=202)
+    def speech(payload: NativeSpeechInput, x_narrator_session: str = Header(default="")):
+        session = session_id(x_narrator_session)
+        if not payload.text.strip():
+            raise HTTPException(400, "There is no text to speak.")
+        try:
+            return audio_jobs.submit(payload.text, payload.voice, session)
+        except ValueError as error:
+            raise HTTPException(429, str(error)) from error
+
+    def find_audio(identifier, session):
+        try:
+            return audio_jobs.get(identifier, session_id(session))
+        except KeyError as error:
+            raise HTTPException(404, "This recording is no longer cached. Press Listen to prepare it again.") from error
+
+    @app.get("/api/speech/{identifier}")
+    def speech_status(identifier: str, x_narrator_session: str = Header(default="")):
+        return audio_jobs.snapshot(find_audio(identifier, x_narrator_session))
+
+    @app.get("/api/speech/{identifier}/file")
+    def speech_file(identifier: str, x_narrator_session: str = Header(default="")):
+        job = find_audio(identifier, x_narrator_session)
+        if job["state"] != "ready":
+            raise HTTPException(409, "The recording is not ready yet.")
+        return Response(job["audio"], media_type="audio/wav")
 
     @app.get("/api/news/{day}")
     def daily_news(day: date, x_narrator_session: str = Header(default="")):
