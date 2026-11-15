@@ -13,147 +13,222 @@ from prompts import SCRIPT_INSTRUCTIONS
 st.set_page_config(page_title="Narrator", page_icon="🎧", layout="centered",)
 
 def split_text(text: str, limit: int = 12000) -> list[str]:
-    
+    remaining = text.strip()
+    sections = []
+
+    while len(remaining) > limit:
+        cut = remaining.rfind("\n\n", 0 , limit)
+
+        if cut < limit // 2:
+            cut = remaining.rfind(" ", 0, limit)
+        if cut < limit // 2:
+            cut = limit
+
+        sections.append(remaining[:cut].strip())
+        remaining = remaining[cut:].lstrip()
+
+    if remaining:
+        sections.append(remaining)
+
+    return sections
 
 st.title("Narrator")
 st.write("Turn complex ideas into words made for listening.")
 
-if "script" not in st.session_state:
-    st.session_state["script"]=""
-
-if "source_text" not in st.session_state:
-    st.session_state["source_text"] = None
-
-if "pdf_result" not in st.session_state:
-    st.session_state["pdf_result"] = None
-
-def clear_pdf_preview():
-    st.session_state["pdf_result"] = None
-
-st.subheader("Import a PDF")
-
-uploaded_pdf = st.file_uploader(
-    "Choose a text-based PDF",
-    type=["pdf"],
-    max_upload_size=20,
-    on_change=clear_pdf_preview,
+st.caption(
+    "Upload a PDF to translate it automatically using Claude. "
+    "Translation uses your API credits; listening does not."
 )
 
-if uploaded_pdf is not None:
-    st.caption(
-        "Use physical PDF page numbers, starting at one. "
-        "These may differ from printed page numbers."
-    )
+with st.sidebar:
+    st.subheader("Document settings")
 
-    with st.form("pdf_extraction"):
-        left, right = st.columns(2)
+    with st.form("document_settings"):
+        first_page = st.number_input(
+            "First page",
+            min_value=1,
+            value=1,
+        )
 
-        with left:
-            start_page = st.number_input(
-                "First page",
-                min_value=1,
-                value=1,
-                step=1,
-            )
-        with right:
-            end_page = st.number_input(
-                "Last page",
-                min_value=1,
-                value=1,
-                step=1,
-            )
-        
+        last_page = st.number_input(
+            "Last page",
+            min_value=0,
+            value=0,
+            help="Zero means the final page. Use physical PDF page numbers.",
+        )
+
         remove_footnotes = st.checkbox(
             "Remove likely footnotes",
             value=True,
         )
 
-        extract_clicked = st.form_submit_button("Extract PDF text")
+        st.form_submit_button("Apply settings")
 
-    if extract_clicked:
-        st.session_state["pdf_result"] = None
-
-        try:
-            with st.spinner("Extracting and cleaning PDF text..."):
-                result = extract_pdf_text(
-                    pdf_bytes=uploaded_pdf.getvalue(),
-                    start_page = int(start_page),
-                    end_page = int(end_page),
-                    remove_footnotes=remove_footnotes,
-                )
-            result["description"] = (
-                f"{uploaded_pdf.name} - "
-                f"pages {int(start_page)} to {int(end_page)}"
-            )
-
-            st.session_state["pdf_result"] = result
-
-        except ValueError as error:
-            st.error(str(error))
-
-        except Exception:
-            st.error(
-                "The PDF could not be processed. "
-                "Trry another file or a smaller page range."
-            )
-        
-pdf_result = st.session_state["pdf_result"]
-
-if pdf_result is not None:
-    st.caption(pdf_result["description"])
-    extracted_text = pdf_result["text"]
-    character_count = len(extracted_text)
-
-    st.success(
-        f"Extracted {character_count:,} characters. "
-        f"Removed {len(pdf_result['removed'])} likely non-content lines."
+    st.caption(
+        "Text-based PDFs only. Maximum twenty megabytes "
+        "and one hundred selected pages."
     )
 
-    with st.expander("Preview extracted text", expanded=True):
+uploaded_pdf = st.file_uploader(
+    "Drop a PDF here, or choose a file",
+    type=["pdf"],
+    max_upload_size=20,
+)
+
+if "documents" not in st.session_state:
+    st.session_state["documents"] = {}
+
+if uploaded_pdf is None:
+    st.info("Add a document to get started.")
+    st.stop()
+
+settings = {
+    "first_page":int(first_page),
+    "last_page": int(last_page),
+    "remove_footnotes":remove_footnotes,
+    "model":os.getenv("ANTHROPIC_MODEL", ""),
+    "instructions":SCRIPT_INSTRUCTIONS,
+    "pipeline_version":1,
+}
+
+pdf_bytes = uploaded_pdf.getvalue()
+
+identity = hashlib.sha256(pdf_bytes)
+identity.update(
+    json.dumps(settings, sort_keys=True).encode("utf-8")
+)
+document_id = identity.hexdigest()
+
+if document_id not in st.session_state["documents"]:
+    st.session_state["documents"][document_id] = {
+        "extraction":None,
+        "sections":[],
+        "translations": [],
+        "error": None,
+        "done": False,
+    }
+
+job = st.session_state["documents"][document_id]
+
+st.caption(uploaded_pdf.name)
+
+if job["error"]:
+    st.error(job["error"])
+
+    if st.button("Retry"):
+        job["error"] = None
+
+if not job["done"] and job["error"] is None:
+    status = st.status(
+        "Reading your document..",
+        expanded=False,
+    )
+
+    try:
+        if job["extraction"] is None:
+            extraction = extract_pdf_text(
+                pdf_bytes,
+                start_page=int(first_page),
+                end_page=int(last_page) or None,
+                remove_footnotes = remove_footnotes,
+            )
+
+            job["extraction"] = extraction
+            job["sections"] = split_text(extraction["text"])
+
+        total = len(job["sections"])
+
+        for index in range(len(job["translations"]), total):
+            status.update(
+                label=(
+                    "Preparing your translation..."
+                    f"{index + 1} of {total}"
+                )
+            )
+
+            translation = generate_script(
+                job["sections"][index]
+            )
+
+            job["translations"].append(translation)
+
+        job["done"] = True
+
+        status.update(
+            label="Your translation is ready",
+            state="complete",
+        )
+
+    except (ValueError, RuntimeError) as error:
+        job["error"] = str(error)
+
+        status.update(
+            label="Your document needs attention",
+            state="error",
+        )
+
+        st.rerun()
+
+    except Exception:
+        job["error"] = (
+            "This document could not be processed. "
+            "Try another PDF or a smaller page range."
+        )
+
+        status.update(
+            label = "Could not process the document",
+            state="error",
+        )
+
+        st.rerun()
+
+if job["translations"]:
+    script = "\n\n".join(job["translations"])
+
+    st.subheader("Your translation")
+
+    if not job["done"]:
+        st.warning(
+            "This is a partial translation. "
+            "Retry to continue with the remaining sections."
+        )
+    elif len(job["sections"]) > 1:
+        st.caption(
+            "Translated in sections. Review transitions "
+            "and references across section boundaries."
+        )
+
+    st.markdown(script)
+    render_player(script)
+    filename = (
+        Path(uploaded_pdf.name).stem + "-translation.txt")
+
+    st.download_button(
+        "Download text",
+        data = script,
+        file_name = filename,
+        mime = "text/plain",
+        on_click = "ignore",
+    )
+
+if job["extraction"]:
+    with st.expander("View source and cleanup"):
+        extraction = job["extraction"]
+
         st.text_area(
-            "Extracted content",
-            value=extracted_text,
+            "Extracted source",
+            value=extraction["text"],
             height=250,
             disabled=True,
         )
-    with st.expander("Review removed lines"):
-        if pdf_result["removed"]:
+
+        for warning in extraction["warnings"]:
+            st.warning(warning)
+
+        if extraction["removed"]:
+            st.write("Removed lines")
+
             st.dataframe(
-                pdf_result["removed"],
+                extraction["removed"],
                 hide_index=True,
             )
-        else:
-            st.write("No lines were removed.")
-            
-
-source_text = st.text_area(
-    "Source text",
-    placeholder = "Paste an academic or philospohical passage here.",
-    height = 250,
-    max_chars=40000,
-)
-
-if st.button("Generate Script"):
-    if not source_text.strip():
-        st.warning("Please enter some text first.")
-    else:
-        try:
-            with st.spinner("Turning your passage into a spoken script..."):
-                script = generate_script(source_text)
-            
-            st.session_state["script"] = script
-            st.success("Your script is ready.")
-
-        except (ValueError, RuntimeError) as error:
-            st.error(str(error))
-
-if st.session_state["script"]:
-    st.subheader("Spoken Script")
-
-    st.text_area(
-        "Review and edit your script",
-        key="script",
-        height=350,
-    )
-
-    render_player(st.session_state["script"])
