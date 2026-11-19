@@ -20,15 +20,15 @@ Narrator connects to the Notion database populated by [AI-Daily-Brief](https://g
 
 Select a story to read its saved summary and listen to it. Article extraction and summarization happen in AI-Daily-Brief; Narrator reads the results without sending those summaries to Claude again. Stories with pending, failed, or unavailable summaries retain their status rather than being presented as finished briefings.
 
-## Free speech, native to your Mac
+## Free, local neural speech
 
-Listening uses the built-in macOS voices **Rishi** and **Samantha**, with short previews so you can choose the voice you prefer. A small native helper renders speech on the Mac running Narrator's Python server. The browser plays the resulting recording instead of selecting a speech voice itself.
+Listening uses **Luna** and **Hugo** from [KittenTTS Nano](https://huggingface.co/KittenML/kitten-tts-nano-0.8-int8), a compact fifteen-million-parameter model running on the Python server's CPU. Preview either voice before listening. The browser plays a generated recording, so voice selection works consistently across Chrome and Safari.
 
 - Continuous playback with pause and resume.
-- Seven-word highlighting driven by native word timestamps and the audio clock.
-- A draggable word-position bar and forward/back controls for seeking within the recording.
-- Adjustable speed and voice switching that preserves the reading position.
+- Seven-word highlighting driven by the audio clock and model-predicted phoneme timings mapped to the original words. Highlight groups do not split playback into separate clips.
+- A draggable word-position bar and forward/back controls that seek within the same recording.
+- Adjustable playback speed without regenerating speech, and voice switching that preserves the reading position.
 
-Speech needs no paid TTS service, speech API key, or additional model download. This native playback path requires macOS and Apple command-line tools. Document rewriting still uses the configured Claude API and its credits.
+The approximately twenty-five-megabyte model is downloaded once and cached locally in an ignored model directory. Speech inference is free and runs offline after that download, without a speech API key, GPU, or PyTorch. Word timings are predictions for listening navigation, not forced alignment. Document rewriting still uses the configured Claude API and its credits.
 
-Documents and recordings are cached temporarily on the Python server, not stored as a permanent library. Download translations you want to retain.
+The downloaded model remains cached between sessions. Uploaded documents, translations, and generated recordings are held temporarily in memory on the Python server, not stored as a permanent library. Download translations you want to retain.
