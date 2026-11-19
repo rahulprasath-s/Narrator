@@ -6,3 +6,10 @@ pdfplumber>=0.11.10,<0.12
 python-dotenv>=1.2,<2
 httpx>=0.28,<1
 trafilatura
+# Lightweight KittenTTS Nano inference; no PyTorch dependency.
+onnxruntime>=1.23,<2
+numpy>=2,<3
+phonemizer>=3.3,<4
+espeakng-loader>=0.2.4,<0.3
+soundfile>=0.13,<0.15
+huggingface-hub>=1,<3

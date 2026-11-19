@@ -7,4 +7,5 @@ node_modules/
 frontend/dist/
 .pytest_cache/
 .narrator-native/
+.narrator-tts/
 extracted_article.txt
