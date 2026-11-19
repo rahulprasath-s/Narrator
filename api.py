@@ -25,7 +25,7 @@ from pdf_parser import extract_pdf_text
 from notion_news import get_news_for_date
 from prompts import SCRIPT_INSTRUCTIONS
 from translator import generate_script
-from native_speech import NativeAudioJobs, installed_voices
+from kitten_speech import KittenAudioJobs, installed_voices
 
 
 ROOT = Path(__file__).parent
@@ -162,14 +162,14 @@ class TextInput(BaseModel):
     name: str = Field(default="Untitled thought", max_length=120)
 
 
-class NativeSpeechInput(BaseModel):
+class SpeechInput(BaseModel):
     text: str = Field(min_length=1, max_length=40000)
-    voice: Literal["Rishi", "Samantha"] = "Samantha"
+    voice: Literal["Luna", "Hugo"] = "Luna"
 
 
 def create_app(manager=None, speech_manager=None):
     jobs = manager or JobManager()
-    audio_jobs = speech_manager or NativeAudioJobs()
+    audio_jobs = speech_manager or KittenAudioJobs()
 
     @asynccontextmanager
     async def lifespan(app):
@@ -219,7 +219,7 @@ def create_app(manager=None, speech_manager=None):
             raise HTTPException(503, str(error)) from error
 
     @app.post("/api/speech", status_code=202)
-    def speech(payload: NativeSpeechInput, x_narrator_session: str = Header(default="")):
+    def speech(payload: SpeechInput, x_narrator_session: str = Header(default="")):
         session = session_id(x_narrator_session)
         if not payload.text.strip():
             raise HTTPException(400, "There is no text to speak.")

@@ -5,15 +5,16 @@ from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 from api import create_app
-from native_speech import NativeAudioJobs, validate_markers, VOICE_IDS
+from kitten_speech import KittenAudioJobs
+from native_speech import validate_markers, VOICE_IDS
 
 
-class NativeSpeechTests(unittest.TestCase):
+class SpeechTests(unittest.TestCase):
     def setUp(self):
-        self.metadata = {"voice": VOICE_IDS["Samantha"], "duration": 1.0,
+        self.metadata = {"voice": "Luna", "duration": 1.0,
                          "words": [{"start": 0, "end": 5, "time": 0.0}]}
         self.renderer = Mock(return_value=(b"RIFF-fake-wave", self.metadata))
-        self.manager = NativeAudioJobs(self.renderer)
+        self.manager = KittenAudioJobs(self.renderer)
         self.client = TestClient(create_app(speech_manager=self.manager), base_url="http://127.0.0.1")
         self.client.__enter__()
         self.headers = {"X-Narrator-Session": "native-voice-test-1234"}
@@ -31,22 +32,22 @@ class NativeSpeechTests(unittest.TestCase):
         self.fail("Native audio did not finish")
 
     def test_recordings_are_cached_and_private_to_the_session(self):
-        result = self.client.post("/api/speech", headers=self.headers, json={"text": "hello", "voice": "Samantha"})
+        result = self.client.post("/api/speech", headers=self.headers, json={"text": "hello", "voice": "Luna"})
         self.assertEqual(result.status_code, 202)
         identifier = result.json()["id"]
         self.assertEqual(self.finished(identifier)["metadata"], self.metadata)
         response = self.client.get(f"/api/speech/{identifier}/file", headers=self.headers)
         self.assertEqual(response.content, b"RIFF-fake-wave")
         self.assertEqual(response.headers["content-type"], "audio/wav")
-        again = self.client.post("/api/speech", headers=self.headers, json={"text": "hello", "voice": "Samantha"})
+        again = self.client.post("/api/speech", headers=self.headers, json={"text": "hello", "voice": "Luna"})
         self.assertEqual(again.json()["id"], identifier)
-        self.renderer.assert_called_once_with("hello", "Samantha")
+        self.renderer.assert_called_once_with("hello", "Luna")
         other = {"X-Narrator-Session": "different-session-1234"}
         self.assertEqual(self.client.get(f"/api/speech/{identifier}/file", headers=other).status_code, 404)
 
-    def test_native_voice_options_and_request_validation(self):
-        with patch("api.installed_voices", return_value=[{"name": "Samantha", "id": VOICE_IDS["Samantha"], "lang": "en-US"}]):
-            self.assertEqual(self.client.get("/api/speech/voices").json()["voices"][0]["name"], "Samantha")
+    def test_kitten_voice_options_and_request_validation(self):
+        with patch("api.installed_voices", return_value=[{"name": "Luna", "id": "Luna", "lang": "en-US"}]):
+            self.assertEqual(self.client.get("/api/speech/voices").json()["voices"][0]["name"], "Luna")
         self.assertEqual(self.client.post("/api/speech", json={"text": "hello"}).status_code, 400)
         self.assertEqual(self.client.post("/api/speech", headers=self.headers, json={"text": "hello", "voice": "unknown"}).status_code, 422)
         self.assertEqual(self.client.post("/api/speech", headers=self.headers, json={"text": " "}).status_code, 400)
@@ -60,6 +61,7 @@ class NativeSpeechTests(unittest.TestCase):
         self.assertNotIn("Private", failure["error"])
 
     def test_wrong_voice_and_invalid_word_timestamps_are_rejected(self):
+        self.metadata["voice"] = VOICE_IDS["Samantha"]
         validate_markers("hello", self.metadata, "Samantha")
         with self.assertRaises(RuntimeError):
             validate_markers("hello", self.metadata, "Rishi")

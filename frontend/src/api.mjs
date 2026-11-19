@@ -43,7 +43,7 @@ export async function apiAudio(path, options = {}) {
     } catch {
       /* Use a safe fallback. */
     }
-    throw new Error(data?.detail || "The Mac recording could not be loaded.");
+    throw new Error(data?.detail || "The recording could not be loaded.");
   }
   return response.blob();
 }

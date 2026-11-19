@@ -120,7 +120,7 @@ export default function Player({ text, speech }) {
         role="group"
         aria-label="Voice selection and previews"
       >
-        {["Rishi", "Samantha"].map((label) => {
+        {["Luna", "Hugo"].map((label) => {
           const voice = speech.voices.find((item) => item.label === label);
           const selected = voice && speech.voiceName === voice.name;
           const previewing = voice && speech.previewingVoice === voice.name;
@@ -179,20 +179,20 @@ export default function Player({ text, speech }) {
           </label>
           <p>
             Speed changes apply immediately. Switching voice keeps your word
-            position. Audio is rendered by macOS, not Chrome.
+            position. Audio is generated locally with KittenTTS Nano.
           </p>
         </div>
       )}
       {!hasVoice && (
         <p className="voice-notice">
           {speech.supported
-            ? "The native Mac voices are not available yet. Keep Narrator’s Python server running on this Mac."
+            ? "KittenTTS is not available yet. Keep Narrator’s Python server running and check its speech dependencies."
             : "This browser doesn’t support speech playback."}
         </p>
       )}
       {speech.timingMode === "unavailable" && (
         <p className="voice-notice" role="status">
-          This voice isn’t reporting word positions. Try another built-in voice
+          This voice isn’t reporting word positions. Try another voice
           for synchronized highlighting. No estimated highlight is being shown.
         </p>
       )}
@@ -202,8 +202,8 @@ export default function Player({ text, speech }) {
         </p>
       )}
       <p className="audio-playback-note">
-        Free Mac speech, played as audio. Drag to seek to a word; highlighting
-        follows native word timestamps.
+        Free local speech with Luna and Hugo. Drag to seek to a word;
+        highlighting follows model-predicted timings and the recording’s clock.
       </p>
     </div>
   );

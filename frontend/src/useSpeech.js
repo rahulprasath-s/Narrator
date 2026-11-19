@@ -9,7 +9,7 @@ export function useSpeech(text) {
   const supported =
     typeof window !== "undefined" && typeof Audio !== "undefined";
   const [voices, setVoices] = useState([]);
-  const [voiceName, setVoiceNameState] = useState("Samantha");
+  const [voiceName, setVoiceNameState] = useState("Luna");
   const [rate, setRateState] = useState(1);
   const [status, setStatus] = useState("idle");
   const [position, setPosition] = useState(0);
@@ -24,7 +24,7 @@ export function useSpeech(text) {
     abort = useRef(null),
     generation = useRef(0);
   const wordRef = useRef(0),
-    voiceRef = useRef("Samantha"),
+    voiceRef = useRef("Luna"),
     rateRef = useRef(1);
   function reportWord(value) {
     wordRef.current = value;
@@ -102,7 +102,7 @@ export function useSpeech(text) {
       job = await api(`/speech/${job.id}`, { signal });
     }
     if (job.state !== "ready")
-      throw new Error(job.error || "The Mac voice could not be rendered.");
+      throw new Error(job.error || "The voice could not be rendered.");
     const blob = await apiAudio(`/speech/${job.id}/file`, { signal });
     if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
     const result = { url: URL.createObjectURL(blob), metadata: job.metadata };
@@ -275,7 +275,7 @@ export function useSpeech(text) {
     wordIndex,
     totalWords: wordCount(text),
     activeRange,
-    timingMode: "native",
+    timingMode: "model-predicted",
     error,
     toggle,
     stop,
