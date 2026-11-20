@@ -24,10 +24,12 @@ Select a story to read its saved summary and listen to it. Article extraction an
 
 Listening uses **Luna** and **Hugo** from [KittenTTS Nano](https://huggingface.co/KittenML/kitten-tts-nano-0.8-int8), a compact fifteen-million-parameter model running on the Python server's CPU. Preview either voice before listening. The browser plays a generated recording, so voice selection works consistently across Chrome and Safari.
 
+Open a spoken script or a saved news summary, choose a voice, and click **Generate audio**. Narrator prepares the recording on demand and starts playback. Switching voices stops playback and keeps your reading position. Click **Generate audio** again to hear the newly selected voice.
+
 - Continuous playback with pause and resume.
 - Seven-word highlighting driven by the audio clock and model-predicted phoneme timings mapped to the original words. Highlight groups do not split playback into separate clips.
 - A draggable word-position bar and forward/back controls that seek within the same recording.
-- Adjustable playback speed without regenerating speech, and voice switching that preserves the reading position.
+- Adjustable playback speed without regenerating speech.
 
 The approximately twenty-five-megabyte model is downloaded once and cached locally in an ignored model directory. Speech inference is free and runs offline after that download, without a speech API key, GPU, or PyTorch. Word timings are predictions for listening navigation, not forced alignment. Document rewriting still uses the configured Claude API and its credits.
 
