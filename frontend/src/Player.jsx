@@ -34,12 +34,14 @@ export default function Player({ text, speech }) {
             <Play size={16} fill="currentColor" />
           )}
           {loading
-            ? "Preparing…"
-            : speech.status === "playing"
-              ? "Pause"
-              : speech.status === "paused"
-                ? "Resume"
-                : "Listen"}
+            ? "Generating audio…"
+            : !speech.hasRecording
+              ? "Generate audio"
+              : speech.status === "playing"
+                ? "Pause"
+                : speech.status === "paused"
+                  ? "Resume"
+                  : "Listen"}
         </button>
         <div className="playback-track">
           <input

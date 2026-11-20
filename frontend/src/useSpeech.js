@@ -12,6 +12,7 @@ export function useSpeech(text) {
   const [voiceName, setVoiceNameState] = useState("Luna");
   const [rate, setRateState] = useState(1);
   const [status, setStatus] = useState("idle");
+  const [hasRecording, setHasRecording] = useState(false);
   const [position, setPosition] = useState(0);
   const [wordIndex, setWordIndex] = useState(0);
   const [activeRange, setActiveRange] = useState(null);
@@ -49,6 +50,7 @@ export function useSpeech(text) {
     stop();
     control.current?.dispose();
     control.current = null;
+    setHasRecording(false);
     if (media.current) {
       media.current.removeAttribute("src");
       media.current.load();
@@ -163,6 +165,7 @@ export function useSpeech(text) {
         onWord: reportWord,
         onRange: setActiveRange,
       });
+      setHasRecording(true);
       if (wordRef.current > 0) control.current.seek(wordRef.current);
       await playCurrent();
     } catch (failure) {
@@ -204,7 +207,6 @@ export function useSpeech(text) {
       voiceRef.current === value
     )
       return;
-    const playing = media.current && !media.current.paused;
     generation.current++;
     abort.current?.abort();
     preview.current?.pause();
@@ -213,12 +215,12 @@ export function useSpeech(text) {
     media.current?.pause();
     control.current?.dispose();
     control.current = null;
+    setHasRecording(false);
     media.current = null;
     voiceRef.current = value;
     setVoiceNameState(value);
     setError("");
-    setStatus(playing ? "loading" : "paused");
-    if (playing) start();
+    setStatus("idle");
   }
   async function previewVoice(value) {
     if (!voices.some((voice) => voice.name === value)) return;
@@ -271,6 +273,7 @@ export function useSpeech(text) {
     rate,
     setRate,
     status,
+    hasRecording,
     position,
     wordIndex,
     totalWords: wordCount(text),
