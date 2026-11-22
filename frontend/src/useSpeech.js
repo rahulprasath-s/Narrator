@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { wordCount } from "./speech.mjs";
 import { api, apiAudio } from "./api.mjs";
 import { bindNativeAudio } from "./nativeAudioPlayback.mjs";
 
 const SAMPLE =
   "Hello. This is a short preview of my voice. Choose the voice you find most comfortable to listen to.";
-export function useSpeech(text) {
+export function useSpeech(text, { storyId, playRequest, onEnded } = {}) {
   const supported =
     typeof window !== "undefined" && typeof Audio !== "undefined";
   const [voices, setVoices] = useState([]);
@@ -27,6 +33,11 @@ export function useSpeech(text) {
   const wordRef = useRef(0),
     voiceRef = useRef("Luna"),
     rateRef = useRef(1);
+  const callbacks = useRef({ onEnded });
+  const handledRequest = useRef(null);
+  useEffect(() => {
+    callbacks.current = { onEnded };
+  }, [onEnded]);
   function reportWord(value) {
     wordRef.current = value;
     setWordIndex(value);
@@ -83,7 +94,7 @@ export function useSpeech(text) {
   useEffect(() => {
     dispose();
     return dispose;
-  }, [text, dispose]);
+  }, [text, storyId, dispose]);
   useEffect(() => {
     window.addEventListener("pagehide", stop);
     return () => window.removeEventListener("pagehide", stop);
@@ -164,6 +175,7 @@ export function useSpeech(text) {
         onPosition: setPosition,
         onWord: reportWord,
         onRange: setActiveRange,
+        onEnded: () => callbacks.current.onEnded?.(storyId),
       });
       setHasRecording(true);
       if (wordRef.current > 0) control.current.seek(wordRef.current);
@@ -175,6 +187,24 @@ export function useSpeech(text) {
       }
     }
   }
+  const playRequestedStory = useEffectEvent((request) => {
+    stop();
+    if (request.wordIndex > 0) seek(request.wordIndex);
+    start();
+  });
+  useEffect(() => {
+    if (
+      !playRequest ||
+      playRequest.storyId !== storyId ||
+      !text.trim() ||
+      !supported ||
+      !voices.length ||
+      handledRequest.current === playRequest
+    )
+      return;
+    handledRequest.current = playRequest;
+    playRequestedStory(playRequest);
+  }, [playRequest, storyId, text, supported, voices.length]);
   function toggle() {
     if (status === "loading") return;
     if (media.current && !media.current.paused) control.current.pause();

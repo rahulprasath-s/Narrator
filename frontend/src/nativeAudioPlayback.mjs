@@ -23,6 +23,7 @@ export function bindNativeAudio({
   onPosition = () => {},
   onWord = () => {},
   onRange = () => {},
+  onEnded = () => {},
   schedule = (callback) => setInterval(callback, 70),
   unschedule = clearInterval,
 }) {
@@ -71,7 +72,12 @@ export function bindNativeAudio({
   const events = {
     playing,
     pause,
-    ended: pause,
+    ended() {
+      if (stopped) return;
+      pause();
+      stopped = true;
+      onEnded();
+    },
     timeupdate: sync,
     seeking: sync,
     seeked: sync,

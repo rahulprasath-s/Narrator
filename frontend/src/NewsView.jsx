@@ -18,6 +18,8 @@ import { useSpeech } from "./useSpeech.js";
 import { wordCount } from "./speech.mjs";
 import Player from "./Player.jsx";
 import HighlightedScript from "./HighlightedScript.jsx";
+import { adjacentBriefStory, readyBriefStories } from "./briefQueue.mjs";
+import { BriefQueueControls, BriefQueueStart } from "./BriefQueueControls.jsx";
 
 function SummaryStatus({ value }) {
   const tone =
@@ -37,16 +39,24 @@ export default function NewsView() {
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
+  const [playRequest, setPlayRequest] = useState(null);
+  const [briefFinished, setBriefFinished] = useState(false);
   const readerRef = useRef(null);
   // Never show the previous date's stories while a different date loads.
   const stories = result?.date === day ? result.stories : [];
+  const queue = readyBriefStories(stories);
+  const queueIndex = queue.findIndex(({ id }) => id === playRequest?.storyId);
   const selected =
     stories.find((story) => story.id === selectedId) ||
     stories.find(summaryReady) ||
     stories[0];
   const playable = !loading && !failure && summaryReady(selected);
   const text = playable ? selected.summary : "";
-  const speech = useSpeech(text);
+  const speech = useSpeech(text, {
+    storyId: selected?.id,
+    playRequest,
+    onEnded: advanceBrief,
+  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,18 +77,53 @@ export default function NewsView() {
     return () => controller.abort();
   }, [day, reload]);
 
-  useEffect(() => {
+  function stopBrief() {
     speech.stop();
-  }, [selected?.id, speech.stop]);
+    setPlayRequest(null);
+    setBriefFinished(false);
+  }
+
+  function changeDay(nextDay) {
+    if (nextDay === day) return;
+    stopBrief();
+    setDay(nextDay);
+  }
+
+  function queueStory(story, wordIndex = 0) {
+    speech.stop();
+    setBriefFinished(false);
+    setSelectedId(story.id);
+    setPlayRequest({ storyId: story.id, wordIndex });
+  }
+
+  function moveBrief(offset) {
+    const story = adjacentBriefStory(queue, playRequest?.storyId, offset);
+    if (story) queueStory(story);
+  }
+
+  function advanceBrief(storyId) {
+    if (!playRequest || playRequest.storyId !== storyId) return;
+    const next = adjacentBriefStory(queue, storyId, 1);
+    if (next) queueStory(next);
+    else {
+      setPlayRequest(null);
+      setBriefFinished(true);
+    }
+  }
 
   function refresh() {
-    speech.stop();
+    stopBrief();
     setResult(null);
     setReload((value) => value + 1);
   }
 
   function selectStory(id) {
+    stopBrief();
     setSelectedId(id);
+    scrollToReader();
+  }
+
+  function scrollToReader() {
     const reducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
@@ -118,7 +163,7 @@ export default function NewsView() {
           <button
             className="icon-button"
             disabled={day === "0001-01-01"}
-            onClick={() => setDay(shiftDay(day, -1))}
+            onClick={() => changeDay(shiftDay(day, -1))}
             aria-label="Previous day"
           >
             <ChevronLeft size={18} />
@@ -133,18 +178,21 @@ export default function NewsView() {
             min="0001-01-01"
             max="9999-12-31"
             onChange={(event) => {
-              if (event.target.value) setDay(event.target.value);
+              if (event.target.value) changeDay(event.target.value);
             }}
           />
           <button
             className="icon-button"
             disabled={day === "9999-12-31"}
-            onClick={() => setDay(shiftDay(day, 1))}
+            onClick={() => changeDay(shiftDay(day, 1))}
             aria-label="Next day"
           >
             <ChevronRight size={18} />
           </button>
-          <button className="news-today" onClick={() => setDay(berlinToday())}>
+          <button
+            className="news-today"
+            onClick={() => changeDay(berlinToday())}
+          >
             Today
           </button>
         </div>
@@ -183,6 +231,18 @@ export default function NewsView() {
 
       {!loading && !failure && stories.length > 0 && (
         <>
+          <BriefQueueStart
+            label={
+              day === berlinToday() ? "Play Today’s Brief" : "Play this brief"
+            }
+            disabled={
+              !queue.length || !speech.supported || !speech.voices.length
+            }
+            onStart={() => {
+              queueStory(queue[0]);
+              scrollToReader();
+            }}
+          />
           <div
             className="news-table-wrap card"
             role="region"
@@ -283,11 +343,25 @@ export default function NewsView() {
                     activeRange={speech.activeRange}
                   />
                   <div className="news-reader-player">
+                    {queueIndex >= 0 && (
+                      <BriefQueueControls
+                        index={queueIndex}
+                        total={queue.length}
+                        onPrevious={() => moveBrief(-1)}
+                        onNext={() => moveBrief(1)}
+                        onStop={stopBrief}
+                      />
+                    )}
+                    {briefFinished && <p role="status">Brief complete.</p>}
                     <p>
                       {wordCount(text).toLocaleString()} words · Saved in
                       Notion. No new generation.
                     </p>
-                    <Player key={selected.id} text={text} speech={speech} />
+                    <Player
+                      key={selected.id}
+                      text={text}
+                      speech={{ ...speech, stop: stopBrief }}
+                    />
                   </div>
                 </>
               ) : (
