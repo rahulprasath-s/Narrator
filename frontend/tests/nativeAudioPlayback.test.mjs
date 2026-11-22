@@ -5,6 +5,7 @@ import { bindNativeAudio } from "../src/nativeAudioPlayback.mjs";
 function fixture(
   text = "one two three four five six seven eight nine",
   times = null,
+  callbacks = {},
 ) {
   const words = [...text.matchAll(/\S+/g)].map((word, i) => ({
     start: word.index,
@@ -46,6 +47,7 @@ function fixture(
     unschedule: () => {
       tick = null;
     },
+    ...callbacks,
   });
   return {
     audio,
@@ -57,6 +59,30 @@ function fixture(
     tick: () => tick?.(),
   };
 }
+
+test("only natural completion advances once and stopping preserves the last progress", async () => {
+  let finishes = 0;
+  const progress = [];
+  const f = fixture(undefined, null, {
+    onEnded: () => finishes++,
+    onProgress: (word) => progress.push(word),
+  });
+  await f.control.play();
+  f.control.seek(4);
+  f.control.pause();
+  assert.equal(finishes, 0);
+  f.control.stop();
+  f.events.get("ended")();
+  assert.equal(finishes, 0);
+  assert.equal(progress.at(-1), 4);
+
+  await f.control.play();
+  f.audio.ended = true;
+  f.events.get("ended")();
+  f.events.get("ended")();
+  assert.equal(finishes, 1);
+  f.control.dispose();
+});
 
 test("native audio highlights follow the actual recording clock", async () => {
   const f = fixture();
@@ -113,12 +139,18 @@ test("nonuniform model timings survive backward seeking, speed changes, and Unic
   f.control.seek(9);
   assert.equal(f.audio.currentTime, 4.7);
   assert.equal(f.audio.paused, false);
-  assert.equal(text.slice(f.ranges.at(-1).start, f.ranges.at(-1).end), "Nine ten.");
+  assert.equal(
+    text.slice(f.ranges.at(-1).start, f.ranges.at(-1).end),
+    "Nine ten.",
+  );
   f.control.setRate(1.8);
   f.control.seek(1);
   assert.equal(f.audio.currentTime, 1);
   assert.equal(f.indices.at(-1), 1);
-  assert.equal(text.slice(f.ranges.at(-1).start, f.ranges.at(-1).end), "🌟 one two three four five six");
+  assert.equal(
+    text.slice(f.ranges.at(-1).start, f.ranges.at(-1).end),
+    "🌟 one two three four five six",
+  );
   // Highlighting reads media time, not elapsed wall time or playback rate.
   f.audio.currentTime = 3.1;
   f.tick();

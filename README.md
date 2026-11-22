@@ -20,6 +20,10 @@ Narrator connects to the Notion database populated by [AI-Daily-Brief](https://g
 
 Select a story to read its saved summary and listen to it. Article extraction and summarization happen in AI-Daily-Brief; Narrator reads the results without sending those summaries to Claude again. Stories with pending, failed, or unavailable summaries retain their status rather than being presented as finished briefings.
 
+Click **Play Today’s Brief** to listen to the day's ready summaries in rank order. Narrator generates one recording at a time with your selected voice and advances when each story ends. Use **Previous story**, **Next story**, or **Stop brief** to control the queue. If a recording fails, retry it in the player or skip to the next story.
+
+**Resume brief** continues from the saved story and word in the same browser. Progress is saved separately for each date. To resume an older brief after reloading, select its date first. An edited summary starts at its first word, and finishing a brief clears that day's progress.
+
 ## Free, local neural speech
 
 Listening uses **Luna** and **Hugo** from [KittenTTS Nano](https://huggingface.co/KittenML/kitten-tts-nano-0.8-int8), a compact fifteen-million-parameter model running on the Python server's CPU. Preview either voice before listening. The browser plays a generated recording, so voice selection works consistently across Chrome and Safari.
