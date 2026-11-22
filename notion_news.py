@@ -94,3 +94,22 @@ def get_news_for_date(day:str) -> list[dict]:
             payload["start_cursor"] = data["next_cursor"]
 
         return sorted(stories, key=lambda story: story["rank"])[:10]
+
+
+def update_reading_status(page_id: str, status: str) -> str:
+    token = os.getenv("NOTION_API_KEY")
+    if not token:
+        raise RuntimeError("The Notion API key is missing from .env.")
+
+    response = httpx.patch(
+        f"https://api.notion.com/v1/pages/{page_id}",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Notion-Version": "2026-03-11",
+        },
+        json={"properties": {"Status": {"status": {"name": status}}}},
+        timeout=15,
+    )
+    response.raise_for_status()
+
+    return response.json()["properties"]["Status"]["status"]["name"]

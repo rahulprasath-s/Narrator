@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from pdf_parser import extract_pdf_text
-from notion_news import get_news_for_date
+from notion_news import get_news_for_date, update_reading_status
 from prompts import SCRIPT_INSTRUCTIONS
 from translator import generate_script
 from kitten_speech import KittenAudioJobs, installed_voices
@@ -167,6 +167,10 @@ class SpeechInput(BaseModel):
     voice: Literal["Luna", "Hugo"] = "Luna"
 
 
+class ReadingStatusInput(BaseModel):
+    status: Literal["READ", "NOT YET", "NOT INTERESTED", "In Progress"]
+
+
 def create_app(manager=None, speech_manager=None):
     jobs = manager or JobManager()
     audio_jobs = speech_manager or KittenAudioJobs()
@@ -264,6 +268,38 @@ def create_app(manager=None, speech_manager=None):
             raise HTTPException(502, "Could not connect to Notion. Try again.") from error
 
         return {"date": day.isoformat(), "count": len(stories), "stories": stories}
+
+    @app.patch("/api/news/{day}/{page_id}/status")
+    def change_reading_status(
+        day: date,
+        page_id: uuid.UUID,
+        payload: ReadingStatusInput,
+        x_narrator_session: str = Header(default=""),
+    ):
+        session_id(x_narrator_session)
+
+        try:
+            stories = get_news_for_date(day.isoformat())
+            if not any(story["id"] == str(page_id) for story in stories):
+                raise HTTPException(404, "Story not found in this brief.")
+
+            status = update_reading_status(str(page_id), payload.status)
+        except RuntimeError as error:
+            raise HTTPException(503, "Configure the Notion connection in .env.") from error
+        except httpx.TimeoutException as error:
+            raise HTTPException(504, "Notion timed out. Refresh to check the saved status.") from error
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code == 403:
+                detail = "Give the Narrator connection permission to update content in Notion."
+            elif error.response.status_code == 400:
+                detail = "Check that the status option exists in Notion with the exact same name."
+            else:
+                detail = "Notion could not save the reading status. Try again."
+            raise HTTPException(502, detail) from error
+        except httpx.RequestError as error:
+            raise HTTPException(502, "Could not reach Notion. Try again.") from error
+
+        return {"id": str(page_id), "status": status}
 
     @app.post("/api/documents", status_code=202)
     async def upload(
