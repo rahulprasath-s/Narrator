@@ -11,7 +11,10 @@ import { bindNativeAudio } from "./nativeAudioPlayback.mjs";
 
 const SAMPLE =
   "Hello. This is a short preview of my voice. Choose the voice you find most comfortable to listen to.";
-export function useSpeech(text, { storyId, playRequest, onEnded } = {}) {
+export function useSpeech(
+  text,
+  { storyId, playRequest, onEnded, onProgress } = {},
+) {
   const supported =
     typeof window !== "undefined" && typeof Audio !== "undefined";
   const [voices, setVoices] = useState([]);
@@ -25,6 +28,7 @@ export function useSpeech(text, { storyId, playRequest, onEnded } = {}) {
   const [error, setError] = useState("");
   const [previewingVoice, setPreviewingVoice] = useState(null);
   const media = useRef(null),
+    audioElement = useRef(null),
     control = useRef(null),
     preview = useRef(null);
   const cache = useRef(new Map()),
@@ -33,11 +37,11 @@ export function useSpeech(text, { storyId, playRequest, onEnded } = {}) {
   const wordRef = useRef(0),
     voiceRef = useRef("Luna"),
     rateRef = useRef(1);
-  const callbacks = useRef({ onEnded });
+  const callbacks = useRef({ onEnded, onProgress });
   const handledRequest = useRef(null);
   useEffect(() => {
-    callbacks.current = { onEnded };
-  }, [onEnded]);
+    callbacks.current = { onEnded, onProgress };
+  }, [onEnded, onProgress]);
   function reportWord(value) {
     wordRef.current = value;
     setWordIndex(value);
@@ -63,6 +67,7 @@ export function useSpeech(text, { storyId, playRequest, onEnded } = {}) {
     control.current = null;
     setHasRecording(false);
     if (media.current) {
+      media.current.onerror = null;
       media.current.removeAttribute("src");
       media.current.load();
       media.current = null;
@@ -123,15 +128,16 @@ export function useSpeech(text, { storyId, playRequest, onEnded } = {}) {
     return result;
   }
   async function playCurrent() {
-    const audio = media.current;
-    if (!audio) return;
+    const playback = control.current;
+    if (!playback) return;
+    const token = generation.current;
     try {
-      await control.current.play();
+      await playback.play();
     } catch {
-      if (media.current === audio) {
+      if (control.current === playback && generation.current === token) {
         setStatus("paused");
         setError(
-          "Your recording is ready. Press Listen again to allow playback in this browser.",
+          "Your recording is ready. Press Resume to allow playback in this browser.",
         );
       }
     }
@@ -157,7 +163,10 @@ export function useSpeech(text, { storyId, playRequest, onEnded } = {}) {
     try {
       const result = await recording(text, voiceRef.current, controller.signal);
       if (token !== generation.current || controller.signal.aborted) return;
-      const audio = new Audio(result.url);
+      // Keep one media element across the brief so browsers that grant playback
+      // permission per element can carry it to the next story.
+      const audio = (audioElement.current ??= new Audio());
+      audio.src = result.url;
       media.current = audio;
       audio.playbackRate = rateRef.current;
       audio.preservesPitch = true;
@@ -176,6 +185,7 @@ export function useSpeech(text, { storyId, playRequest, onEnded } = {}) {
         onWord: reportWord,
         onRange: setActiveRange,
         onEnded: () => callbacks.current.onEnded?.(storyId),
+        onProgress: (index) => callbacks.current.onProgress?.(storyId, index),
       });
       setHasRecording(true);
       if (wordRef.current > 0) control.current.seek(wordRef.current);

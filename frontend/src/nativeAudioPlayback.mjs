@@ -22,6 +22,7 @@ export function bindNativeAudio({
   onStatus = () => {},
   onPosition = () => {},
   onWord = () => {},
+  onProgress = () => {},
   onRange = () => {},
   onEnded = () => {},
   schedule = (callback) => setInterval(callback, 70),
@@ -51,7 +52,9 @@ export function bindNativeAudio({
     }
     const position = metadata.words[index].start;
     onPosition(position);
-    onWord(Math.max(0, atOrBefore(words, position, "index")));
+    const wordIndex = Math.max(0, atOrBefore(words, position, "index"));
+    onWord(wordIndex);
+    onProgress(wordIndex);
     const batch = batches[Math.max(0, atOrBefore(batches, position, "start"))];
     onRange(batch ? { start: batch.start, end: batch.end } : null);
   }

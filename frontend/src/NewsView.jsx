@@ -20,6 +20,12 @@ import Player from "./Player.jsx";
 import HighlightedScript from "./HighlightedScript.jsx";
 import { adjacentBriefStory, readyBriefStories } from "./briefQueue.mjs";
 import { BriefQueueControls, BriefQueueStart } from "./BriefQueueControls.jsx";
+import {
+  makeBriefProgress,
+  readBriefProgress,
+  resolveBriefProgress,
+  writeBriefProgress,
+} from "./briefProgress.mjs";
 
 function SummaryStatus({ value }) {
   const tone =
@@ -41,11 +47,14 @@ export default function NewsView() {
   const [selectedId, setSelectedId] = useState(null);
   const [playRequest, setPlayRequest] = useState(null);
   const [briefFinished, setBriefFinished] = useState(false);
+  const [checkpoint, setCheckpoint] = useState(() => readBriefProgress(day));
+  const lastSavedWord = useRef(null);
   const readerRef = useRef(null);
   // Never show the previous date's stories while a different date loads.
   const stories = result?.date === day ? result.stories : [];
   const queue = readyBriefStories(stories);
   const queueIndex = queue.findIndex(({ id }) => id === playRequest?.storyId);
+  const resume = playRequest ? null : resolveBriefProgress(queue, checkpoint);
   const selected =
     stories.find((story) => story.id === selectedId) ||
     stories.find(summaryReady) ||
@@ -56,6 +65,7 @@ export default function NewsView() {
     storyId: selected?.id,
     playRequest,
     onEnded: advanceBrief,
+    onProgress: saveWord,
   });
 
   useEffect(() => {
@@ -86,7 +96,24 @@ export default function NewsView() {
   function changeDay(nextDay) {
     if (nextDay === day) return;
     stopBrief();
+    setCheckpoint(readBriefProgress(nextDay));
     setDay(nextDay);
+  }
+
+  function saveCheckpoint(progress) {
+    writeBriefProgress(day, progress);
+    setCheckpoint(progress);
+  }
+
+  function saveWord(storyId, wordIndex) {
+    if (
+      playRequest?.storyId !== storyId ||
+      selected?.id !== storyId ||
+      lastSavedWord.current === wordIndex
+    )
+      return;
+    lastSavedWord.current = wordIndex;
+    saveCheckpoint(makeBriefProgress(selected, wordIndex));
   }
 
   function queueStory(story, wordIndex = 0) {
@@ -94,6 +121,8 @@ export default function NewsView() {
     setBriefFinished(false);
     setSelectedId(story.id);
     setPlayRequest({ storyId: story.id, wordIndex });
+    lastSavedWord.current = wordIndex;
+    saveCheckpoint(makeBriefProgress(story, wordIndex));
   }
 
   function moveBrief(offset) {
@@ -108,6 +137,7 @@ export default function NewsView() {
     else {
       setPlayRequest(null);
       setBriefFinished(true);
+      saveCheckpoint(null);
     }
   }
 
@@ -242,6 +272,14 @@ export default function NewsView() {
               queueStory(queue[0]);
               scrollToReader();
             }}
+            onResume={
+              resume
+                ? () => {
+                    queueStory(resume.story, resume.wordIndex);
+                    scrollToReader();
+                  }
+                : undefined
+            }
           />
           <div
             className="news-table-wrap card"
