@@ -1489,6 +1489,18 @@ textarea::placeholder {
   color: var(--muted);
   font-size: 11px;
 }
+.brief-queue-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.brief-queue-controls > span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-right: 6px;
+}
 .news-date-controls {
   display: flex;
   align-items: center;
