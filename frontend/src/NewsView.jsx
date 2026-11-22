@@ -10,6 +10,7 @@ import { api } from "./api.mjs";
 import {
   articleUrl,
   berlinToday,
+  mergeReadingStatuses,
   shiftDay,
   summaryReady,
   validateNewsBrief,
@@ -38,6 +39,13 @@ function SummaryStatus({ value }) {
   return <span className={`news-status ${tone}`}>{value || "Pending"}</span>;
 }
 
+const READING_STATUS_OPTIONS = [
+  { value: "READ", label: "Read" },
+  { value: "NOT YET", label: "Not yet" },
+  { value: "NOT INTERESTED", label: "Not interested" },
+  { value: "In Progress", label: "In progress" },
+];
+
 export default function NewsView() {
   const [day, setDay] = useState(berlinToday);
   const [result, setResult] = useState(null);
@@ -45,11 +53,15 @@ export default function NewsView() {
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
+  const [savingStatusId, setSavingStatusId] = useState(null);
+  const [statusError, setStatusError] = useState(null);
+  const statusSave = useRef({ inFlight: false, revision: 0 });
   const [playRequest, setPlayRequest] = useState(null);
   const [briefFinished, setBriefFinished] = useState(false);
   const [checkpoint, setCheckpoint] = useState(() => readBriefProgress(day));
   const lastSavedWord = useRef(null);
   const readerRef = useRef(null);
+  const loadedDay = result?.date;
   // Never show the previous date's stories while a different date loads.
   const stories = result?.date === day ? result.stories : [];
   const queue = readyBriefStories(stories);
@@ -86,6 +98,72 @@ export default function NewsView() {
       });
     return () => controller.abort();
   }, [day, reload]);
+
+  useEffect(() => {
+    if (loading || failure || loadedDay !== day || savingStatusId) return;
+
+    const controller = new AbortController();
+    let checking = false;
+
+    async function syncReadingStatuses() {
+      if (checking || document.hidden || statusSave.current.inFlight) return;
+      checking = true;
+      const revision = statusSave.current.revision;
+      try {
+        const latest = validateNewsBrief(
+          await api(`/news/${day}`, { signal: controller.signal }),
+        );
+        if (
+          controller.signal.aborted ||
+          latest.date !== day ||
+          revision !== statusSave.current.revision
+        )
+          return;
+        const statuses = new Map(
+          latest.stories.map(({ id, status }) => [id, status]),
+        );
+        setResult((current) => mergeReadingStatuses(current, day, statuses));
+      } catch {
+        // Keep the displayed statuses and retry on the next check.
+      } finally {
+        checking = false;
+      }
+    }
+
+    const timer = window.setInterval(syncReadingStatuses, 30_000);
+    window.addEventListener("focus", syncReadingStatuses);
+    document.addEventListener("visibilitychange", syncReadingStatuses);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("focus", syncReadingStatuses);
+      document.removeEventListener("visibilitychange", syncReadingStatuses);
+    };
+  }, [day, loadedDay, loading, failure, savingStatusId]);
+
+  async function saveReadingStatus(story, status) {
+    if (statusSave.current.inFlight || status === story.status) return;
+
+    statusSave.current.inFlight = true;
+    statusSave.current.revision++;
+    setSavingStatusId(story.id);
+    setStatusError(null);
+    try {
+      const saved = await api(`/news/${day}/${story.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      setResult((current) =>
+        mergeReadingStatuses(current, day, new Map([[saved.id, saved.status]])),
+      );
+    } catch (error) {
+      setStatusError({ day, message: error.message });
+    } finally {
+      statusSave.current.inFlight = false;
+      setSavingStatusId(null);
+    }
+  }
 
   function stopBrief() {
     speech.stop();
@@ -143,6 +221,7 @@ export default function NewsView() {
 
   function refresh() {
     stopBrief();
+    setStatusError(null);
     setResult(null);
     setReload((value) => value + 1);
   }
@@ -182,7 +261,11 @@ export default function NewsView() {
           <h1>AI Brief</h1>
           <p>Your daily news and saved summaries, from Notion.</p>
         </div>
-        <button className="new-button" onClick={refresh} disabled={loading}>
+        <button
+          className="new-button"
+          onClick={refresh}
+          disabled={loading || Boolean(savingStatusId)}
+        >
           <RefreshCw size={14} />
           Refresh
         </button>
@@ -261,6 +344,11 @@ export default function NewsView() {
 
       {!loading && !failure && stories.length > 0 && (
         <>
+          {statusError?.day === day && (
+            <p className="error-banner" role="alert">
+              {statusError.message}
+            </p>
+          )}
           <BriefQueueStart
             label={
               day === berlinToday() ? "Play Today’s Brief" : "Play this brief"
@@ -331,7 +419,33 @@ export default function NewsView() {
                         <SummaryStatus value={story.summary_status} />
                       </td>
                       <td>{story.source || "—"}</td>
-                      <td>{story.status || "—"}</td>
+                      <td>
+                        <select
+                          className="news-reading-status"
+                          aria-label={`Reading status for ${story.title}`}
+                          value={story.status || ""}
+                          disabled={Boolean(savingStatusId)}
+                          onChange={(event) =>
+                            saveReadingStatus(story, event.target.value)
+                          }
+                        >
+                          {!READING_STATUS_OPTIONS.some(
+                            ({ value }) => value === story.status,
+                          ) && (
+                            <option value={story.status || ""} disabled>
+                              {story.status || "Choose status"}
+                            </option>
+                          )}
+                          {READING_STATUS_OPTIONS.map(({ value, label }) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                        {savingStatusId === story.id && (
+                          <span role="status"> Saving…</span>
+                        )}
+                      </td>
                       <td>
                         {url ? (
                           <a
@@ -427,7 +541,8 @@ export default function NewsView() {
           )}
           <p className="news-footnote">
             Select a story title to read and listen. News and summaries are read
-            from Notion; browsing here doesn’t change their status.
+            from Notion. Use the Reading status dropdown to update a story in
+            Notion.
           </p>
         </>
       )}

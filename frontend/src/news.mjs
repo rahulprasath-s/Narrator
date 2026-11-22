@@ -19,6 +19,19 @@ export function summaryReady(story) {
   return story?.summary_status === "Ready" && Boolean(story.summary?.trim());
 }
 
+export function mergeReadingStatuses(brief, day, statuses) {
+  if (!brief || brief.date !== day) return brief;
+
+  let changed = false;
+  const stories = brief.stories.map((story) => {
+    if (!statuses.has(story.id) || statuses.get(story.id) === story.status)
+      return story;
+    changed = true;
+    return { ...story, status: statuses.get(story.id) };
+  });
+  return changed ? { ...brief, stories } : brief;
+}
+
 export function articleUrl(value) {
   try {
     const url = new URL(value);

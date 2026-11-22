@@ -2,11 +2,33 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   berlinToday,
+  mergeReadingStatuses,
   shiftDay,
   summaryReady,
   articleUrl,
   validateNewsBrief,
 } from "../src/news.mjs";
+
+test("incoming Notion statuses update only matching stories on the loaded date", () => {
+  const story = {
+    id: "a",
+    summary: "Saved prose",
+    summary_status: "Ready",
+    status: "NOT YET",
+  };
+  const other = { id: "b", status: "In Progress" };
+  const brief = { date: "2026-11-14", stories: [story, other] };
+  const statuses = new Map([
+    ["a", "READ"],
+    ["unlisted", "NOT INTERESTED"],
+  ]);
+  const result = mergeReadingStatuses(brief, brief.date, statuses);
+
+  assert.deepEqual(result.stories[0], { ...story, status: "READ" });
+  assert.equal(result.stories[1], other);
+  assert.equal(mergeReadingStatuses(result, brief.date, statuses), result);
+  assert.equal(mergeReadingStatuses(brief, "2026-11-15", statuses), brief);
+});
 
 test("outdated API responses cannot masquerade as pending summaries", () => {
   assert.throws(
