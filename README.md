@@ -24,6 +24,8 @@ Click **Play Today’s Brief** to listen to the day's ready summaries in rank or
 
 **Resume brief** continues from the saved story and word in the same browser. Progress is saved separately for each date. To resume an older brief after reloading, select its date first. An edited summary starts at its first word, and finishing a brief clears that day's progress.
 
+Use **Reading status** to mark a story as Read, Not yet, Not interested, or In progress. Narrator saves that choice to Notion. Edits made in Notion appear when you return to Narrator or on its next 30-second check while the tab is visible. The Notion connection needs permission to update content.
+
 ## Free, local neural speech
 
 Listening uses **Luna** and **Hugo** from [KittenTTS Nano](https://huggingface.co/KittenML/kitten-tts-nano-0.8-int8), a compact fifteen-million-parameter model running on the Python server's CPU. Preview either voice before listening. The browser plays a generated recording, so voice selection works consistently across Chrome and Safari.
